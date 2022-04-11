@@ -47,6 +47,12 @@ namespace json {
 		void ParseStops(std::vector<Dict>);
 
 		void ParseBuses(std::vector<Dict>);
+
+		void PrintStop(std::ostream&, const std::vector<std::string>&);
+
+		void PrintBus(std::ostream&, const objects::RouteData&);
+
+		void PrintSvgMap(std::ostream&, const std::string_view&);
 	};
 
 }//end of namespace json

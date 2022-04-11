@@ -20,23 +20,16 @@ namespace json {
 		using runtime_error::runtime_error;
 	};
 
-	class Node {
+	class Node final : std::variant<std::nullptr_t, Array, Dict, int, double, bool, std::string> {
 	public:
-		Node() = default;
-		Node(Array array) : node_(std::move(array)) {}
-		Node(Dict map) : node_(std::move(map)) {}
-		Node(int value) : node_(value) {}
-		Node(double value) : node_(value) {}
-		Node(bool value) : node_(value) {}
-		Node(std::string str) : node_(str) {}
-		Node(void*) : node_() {}
+		using variant::variant;
 
 		bool operator==(const Node& other) const {
-			return other.node_ == node_;
+			return *this == other;
 		}
 
 		bool operator!=(const Node& other) const {
-			return !(other.node_ == node_);
+			return !(*this == other);
 		}
 
 		bool IsArray() const;
@@ -55,9 +48,6 @@ namespace json {
 		bool AsBool() const;
 		const std::string& AsString() const;
 		const void* AsNull() const;
-
-	private:
-		std::variant<std::nullptr_t, Array, Dict, int, double, bool, std::string> node_;
 	};
 
 	class Document {

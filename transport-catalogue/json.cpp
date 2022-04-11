@@ -224,55 +224,102 @@ namespace json {
 		}
 	}
 
-	bool Node::IsArray() const { return std::holds_alternative<Array>(node_); }
-	bool Node::IsMap() const { return std::holds_alternative<Dict>(node_); }
-	bool Node::IsInt() const { return std::holds_alternative<int>(node_); }
-	bool Node::IsDouble() const { return std::holds_alternative<int>(node_) || std::holds_alternative<double>(node_); }
-	bool Node::IsPureDouble() const { return std::holds_alternative<double>(node_) && !std::holds_alternative<int>(node_); }
-	bool Node::IsBool() const { return std::holds_alternative<bool>(node_); }
-	bool Node::IsString() const { return std::holds_alternative<std::string>(node_); }
-	bool Node::IsNull() const { return std::holds_alternative<std::nullptr_t>(node_); }
+	bool Node::IsArray() const {
+		return std::holds_alternative<Array>(*this);
+	}
+
+	bool Node::IsMap() const {
+		return std::holds_alternative<Dict>(*this);
+	}
+
+	bool Node::IsInt() const {
+		return std::holds_alternative<int>(*this);
+	}
+
+	bool Node::IsDouble() const {
+		return std::holds_alternative<int>(*this) || std::holds_alternative<double>(*this);
+	}
+
+	bool Node::IsPureDouble() const {
+		return std::holds_alternative<double>(*this) && !std::holds_alternative<int>(*this);
+	}
+
+	bool Node::IsBool() const {
+		return std::holds_alternative<bool>(*this);
+	}
+
+	bool Node::IsString() const {
+		return std::holds_alternative<std::string>(*this);
+	}
+
+	bool Node::IsNull() const {
+		return std::holds_alternative<std::nullptr_t>(*this);
+	}
 
 	const Array& Node::AsArray() const {
-		if (IsArray()) { return std::get<Array>(node_); }
-		else { throw std::logic_error("Node data is not array"s); }
+		if (IsArray()) {
+			return std::get<Array>(*this);
+		}
+		else {
+			throw std::logic_error("Node data is not array"s);
+		}
 	}
 
 	const Dict& Node::AsMap() const {
-		if (IsMap()) { return std::get<Dict>(node_); }
-		else { throw std::logic_error("Node data is not map"s); }
+		if (IsMap()) {
+			return std::get<Dict>(*this);
+		}
+		else {
+			throw std::logic_error("Node data is not map"s);
+		}
 	}
 
 	int Node::AsInt() const {
-		if (IsInt()) { return std::get<int>(node_); }
-		else { throw std::logic_error("Node data is not int"s); }
+		if (IsInt()) {
+			return std::get<int>(*this);
+		}
+		else {
+			throw std::logic_error("Node data is not int"s);
+		}
 	}
 
 	double Node::AsDouble() const {
 		if (IsDouble()) {
 			if (IsInt()) {
-				return double(std::get<int>(node_));
+				return double(std::get<int>(*this));
 			}
 			else {
-				return std::get<double>(node_);
+				return std::get<double>(*this);
 			};
 		}
 		else { throw std::logic_error("Node data is not double"s); }
 	}
 
 	bool Node::AsBool() const {
-		if (IsBool()) { return std::get<bool>(node_); }
-		else { throw std::logic_error("Node data is not bool"s); }
+		if (IsBool()) {
+			return std::get<bool>(*this);
+		}
+		else {
+			throw std::logic_error("Node data is not bool"s);
+		}
 	}
 
 	const std::string& Node::AsString() const {
-		if (IsString()) { return std::get<std::string>(node_); }
-		else { throw std::logic_error("Node data is not string"s); }
+		if (IsString()) {
+			return std::get<std::string>(*this);
+		}
+		else {
+			throw std::logic_error("Node data is not string"s);
+		}
 	}
 
 	const void* Node::AsNull() const {
-		if (IsNull()) { return nullptr; }
-		else { throw std::logic_error("Node data is not null"s); }
+		if (IsNull()) {
+			return nullptr;
+		}
+		else {
+			throw std::logic_error("Node data is not null"s);
+		}
 	}
 
 	const Node& Document::GetRoot() const {

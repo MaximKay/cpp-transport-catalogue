@@ -23,7 +23,9 @@ namespace render {
 		void SetWidthAndHeight(const double width, const double height);
 
 		void SetPadding(const double padding);
+
 		void SetStopRadius(const double stop_radius);
+
 		void SetLineWidth(const double line_width);
 
 		void SetBusAndStopsFontsSize(const int bus_label_font_size, const int stop_label_font_size);
@@ -34,6 +36,7 @@ namespace render {
 		void SetUnderlayerColor(const svg::Color& underlayer_color);
 
 		void SetUnderlayerWidth(const double underlayer_width);
+
 		void SetColorPalette(const std::vector<svg::Color> color_palette);
 
 		void GetRoutes(const std::map<const objects::Bus*, std::vector<const objects::Stop*>>&);
@@ -41,13 +44,17 @@ namespace render {
 		const std::string_view MapAsSvg();
 
 	private:
-		double height_{}, width_{}, padding_{};
-		double line_width_{}, stop_radius_{};
-		int bus_label_font_size_{}, stop_label_font_size_{};
-		svg::Point bus_label_offset_{}, stop_label_offset_{};
-		svg::Color underlayer_color_;
-		double underlayer_width_{};
-		std::vector<svg::Color> color_palette_;
+		struct Settings {
+			double height{}, width{}, padding{};
+			double line_width{}, stop_radius{};
+			int bus_label_font_size{}, stop_label_font_size{};
+			svg::Point bus_label_offset{}, stop_label_offset{};
+			svg::Color underlayer_color;
+			double underlayer_width{};
+			std::vector<svg::Color> color_palette;
+		};
+
+		Settings settings_;
 
 		std::map<const objects::Bus*, std::vector<const objects::Stop*>, objects::BusPtrComp> routes_;
 		std::map<const objects::Stop*, svg::Point, objects::StopPtrComp> unique_stops_with_xy_;

@@ -6,26 +6,15 @@ namespace json {
 
 	void JsonReader::LoadData(std::istream& input, render::MapRenderer& renderer) {
 		Document doc = Load(input);
-		const Node& node_ = doc.GetRoot();
-		if (node_.IsMap()) {
-			const auto& stat_base_requests = node_.AsMap();
 
-			try {
-				//process base requests
-				ProcessStopsAndBuses(stat_base_requests.at("base_requests"s).AsArray());
-				//process render settings
-				ProcessRenderSettings(renderer, stat_base_requests.at("render_settings"s).AsMap());
-				//process stat requests
-				ProcessRequests(stat_base_requests.at("stat_requests"s).AsArray());
-			}
-			catch (const std::exception&) {
-				std::cerr << "Wrong data format"s << std::endl;
-			};
+		const auto& all_requests = doc.GetRoot().AsMap();
 
-		}
-		else {
-			throw ParsingError("Wrong json format"s);
-		};
+		//process base requests
+		ProcessStopsAndBuses(all_requests.at("base_requests"s).AsArray());
+		//process render settings
+		ProcessRenderSettings(renderer, all_requests.at("render_settings"s).AsMap());
+		//process stat requests
+		ProcessRequests(all_requests.at("stat_requests"s).AsArray());
 	}
 
 	void JsonReader::Print(std::ostream& out, const std::vector<objects::RequestAnswer>& data) {
@@ -43,47 +32,18 @@ namespace json {
 
 			out << '{' << std::endl;
 			out << "\"request_id\": "s << answer.id << ',' << std::endl;
+
 			//if data is vector - object is stop
 			if (std::holds_alternative<stop_data>(answer.data)) {
-				out << "\"buses\": "s << '[' << std::endl;
-				bool first = true;
-				for (const auto& bus : std::get<stop_data>(answer.data)) {
-					if (first) {
-						out << '\"' << bus << '\"';
-						first = false;
-					}
-					else {
-						out << ", "s << '\"' << bus << '\"';
-					};
-				};
-				out << std::endl << ']' << std::endl;
+				PrintStop(out, std::get<stop_data>(answer.data));
 			}
 			//if data is RouteData - object is bus
 			else if (std::holds_alternative<bus_data>(answer.data)) {
-				const bus_data& info = std::get<bus_data>(answer.data);
-				out << "\"curvature\": "s << info.curvature << ',' << std::endl;
-				out << "\"route_length\": "s << info.length << ',' << std::endl;
-				out << "\"stop_count\": "s << info.stops_count << ',' << std::endl;
-				out << "\"unique_stop_count\": "s << info.unique_stops << std::endl;
+				PrintBus(out, std::get<bus_data>(answer.data));
 			}
 			//case if data is map_renderer(string_view)
 			else if (std::holds_alternative<svg_map>(answer.data)) {
-				const std::string_view& svg(std::get<svg_map>(answer.data));
-				out << "\"map\": \""s; 
-				//processing string_view char by char to catch escape sequences
-				/*bool first_test = true;
-				int pos{};*/
-				for (const char c : svg) {
-					if (c == '\"' || c == '\\') {
-						out << '\\';
-					}
-					else if (c == '\n') {
-						out << "\\n"s;
-						continue;
-					};
-					out << c;
-				};
-				out << '\"' << std::endl;
+				PrintSvgMap(out, std::get<svg_map>(answer.data));
 			}
 			//id data is error (bool) - object is error
 			else if (std::holds_alternative<error>(answer.data)) {
@@ -92,6 +52,44 @@ namespace json {
 			out << '}';
 		};
 		out << std::endl << ']' << std::endl;
+	}
+
+	void JsonReader::PrintStop(std::ostream& out, const std::vector<std::string>& buses) {
+		out << "\"buses\": "s << '[' << std::endl;
+		bool first = true;
+		for (const auto& bus : buses) {
+			if (first) {
+				out << '\"' << bus << '\"';
+				first = false;
+			}
+			else {
+				out << ", "s << '\"' << bus << '\"';
+			};
+		};
+		out << std::endl << ']' << std::endl;
+	}
+
+	void JsonReader::PrintBus(std::ostream& out, const objects::RouteData& data) {
+		out << "\"curvature\": "s << data.curvature << ',' << std::endl;
+		out << "\"route_length\": "s << data.length << ',' << std::endl;
+		out << "\"stop_count\": "s << data.stops_count << ',' << std::endl;
+		out << "\"unique_stop_count\": "s << data.unique_stops << std::endl;
+	}
+
+	void JsonReader::PrintSvgMap(std::ostream& out, const std::string_view& svg_map) {
+		out << "\"map\": \""s;
+		//processing string_view char by char to catch escape sequences
+		for (const char c : svg_map) {
+			if (c == '\"' || c == '\\') {
+				out << '\\';
+			}
+			else if (c == '\n') {
+				out << "\\n"s;
+				continue;
+			};
+			out << c;
+		};
+		out << '\"' << std::endl;
 	}
 
 	const std::map<std::string, geo::Coordinates>& JsonReader::GetParsedStops() {
@@ -200,58 +198,49 @@ namespace json {
 
 	void JsonReader::ParseStops(std::vector<Dict> stops) {
 		for (const auto& object : stops) {
-			//getting stop data, also checking data validity
-			try {
-				const std::string& stop_name = object.at("name"s).AsString();
-				geo::Coordinates coordinates{};
-				coordinates.lat = object.at("latitude"s).IsPureDouble() ? object.at("latitude"s).AsDouble() : double(object.at("latitude"s).AsInt());
-				coordinates.lng = object.at("longitude"s).IsPureDouble() ? object.at("longitude"s).AsDouble() : double(object.at("longitude"s).AsInt());
-				//adding stop to reader container
-				parsed_stops_[stop_name] = coordinates;
-				//adding road distances to reader container
-				const std::map<std::string, Node>& distances = { object.at("road_distances"s).AsMap() };
-				if (!distances.empty()) {
-					for (const auto& [second_stop, length_as_node] : distances) {
-						routes_lengths_[stop_name][second_stop] = length_as_node.AsInt();
-					};
+			const std::string& stop_name = object.at("name"s).AsString();
+
+			geo::Coordinates coordinates{};
+			coordinates.lat = object.at("latitude"s).AsDouble();
+			coordinates.lng = object.at("longitude"s).AsDouble();
+			//adding stop to reader container
+			parsed_stops_[stop_name] = coordinates;
+			//adding road distances to reader container
+			const std::map<std::string, Node>& distances = { object.at("road_distances"s).AsMap() };
+			if (!distances.empty()) {
+				for (const auto& [second_stop, length_as_node] : distances) {
+					routes_lengths_[stop_name][second_stop] = length_as_node.AsInt();
 				};
-			}
-			catch (const std::exception&) {
-				std::cerr << "Bus stop data don't have needed key-values"s << std::endl;
-			}
+			};
 		};
 	}
 
 	void JsonReader::ParseBuses(std::vector<Dict> buses) {
 		for (const auto& object : buses) {
-			//getting bus data, also checking data validity
-			try {
-				const std::string& bus_name = object.at("name"s).AsString();
-				auto& bus_route = parsed_buses_routes_[bus_name];
+			const std::string& bus_name = object.at("name"s).AsString();
+			auto& bus_route = parsed_buses_routes_[bus_name];
 
-				//filling pair of vector and bool is_roundtrip
-				std::vector<std::string> stops;
-				bus_route = std::make_pair(stops, object.at("is_roundtrip"s).AsBool());
+			bool is_roundtrip{ object.at("is_roundtrip"s).AsBool() };
 
-				//getting bus stops vector and converting stops names to strings
-				const std::vector<Node>& bus_stops = object.at("stops"s).AsArray();
-				for (const auto& stop : bus_stops) {
-					bus_route.first.push_back(stop.AsString());
-				};
-				//check if route is not a roundtrip and and adding stops to route in reversed order if not
-				if (bus_route.second == false) {
-					if (bus_route.first.size() == 1) {
-						bus_route.first.push_back(bus_route.first.front());
-					}
-					else {
-						for (int i = int(parsed_buses_routes_.at(bus_name).first.size()) - 2; i >= 0; --i) {
-							bus_route.first.push_back(bus_route.first[i]);
-						};
+			//filling pair of vector and bool is_roundtrip
+			std::vector<std::string> stops;
+			bus_route = std::make_pair(stops, is_roundtrip);
+
+			//getting bus stops vector and converting stops names to strings
+			const std::vector<Node>& bus_stops = object.at("stops"s).AsArray();
+			for (const auto& stop : bus_stops) {
+				bus_route.first.push_back(stop.AsString());
+			};
+			//check if route is not a roundtrip and and adding stops to route in reversed order if not
+			if (!is_roundtrip) {
+				if (bus_route.first.size() == 1) {
+					bus_route.first.push_back(bus_route.first.front());
+				}
+				else {
+					for (int i = int(parsed_buses_routes_.at(bus_name).first.size()) - 2; i >= 0; --i) {
+						bus_route.first.push_back(bus_route.first[i]);
 					};
 				};
-			}
-			catch (const std::exception&) {
-				std::cerr << "Bus data don't have needed key-values"s << std::endl;
 			};
 		}
 	}
