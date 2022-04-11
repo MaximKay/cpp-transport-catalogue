@@ -26,11 +26,11 @@ namespace transport {
 
 		void AddStop(const std::string&, const geo::Coordinates&);
 
-		void AddStopForBus(const Bus*, const Stop*);
-
 		const Bus* AddBus(const std::string&, const bool);
 
-		void AddBusForStop(const Stop*, const Bus*);
+		void ExpandBusAndStopInfo(const Bus*, const Stop*);
+
+		void ExpandBusAndStopInfo(const Stop*, const Bus*);
 
 		const Stop* FindStop(const std::string&);
 
@@ -46,13 +46,10 @@ namespace transport {
 
 		const RequestAnswer ConstructAnswerForRequest(const Request&);
 
-		const std::map<const Bus*, std::vector<const Stop*>> RoutesForMap();
+		const std::vector<const Bus*> RoutesForMap();
 
 	private:
-		std::unordered_map<const Bus*, std::vector<const Stop*>> routes_{};
-		std::unordered_map<const Stop*, std::set<const Bus*, BusPtrComp>> buses_for_stop_{};
 		std::unordered_map<const StopsPtrsPair, size_t, StopsPtrsPairHasher> routes_lengths_{};
-		std::unordered_map<const Bus*, RouteData> route_data_{};
 		std::deque<Stop> stops_{};
 		std::deque<Bus> buses_{};
 	};

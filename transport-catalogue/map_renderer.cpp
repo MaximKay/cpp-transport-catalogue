@@ -44,13 +44,14 @@ namespace render {
 		settings_.color_palette = color_palette;
 	}
 
-	void MapRenderer::GetRoutes(const std::map<const objects::Bus*, std::vector<const objects::Stop*>>& routes) {
-		//creating maps of sorted routes and unique stops
-		for (const auto& [bus, stops] : routes) {
-			routes_[bus] = stops;
+	void MapRenderer::GetRoutes(const std::vector<const objects::Bus*>& buses) {
+		//incoming vector doesnt have duplicates and already sorted
+		buses_ = buses;
 
-			for (const objects::Stop* stop : stops) {
-				unique_stops_with_xy_[stop];
+		//creating map of sorted and unique stops
+		for (const objects::Bus* bus_ptr : buses_) {
+			for (const objects::Stop* stop_ptr : bus_ptr->stops) {
+				unique_stops_points_[stop_ptr];
 			};
 		};
 	}
@@ -75,9 +76,9 @@ namespace render {
 	}
 
 	void MapRenderer::FindMinMaxCoordinates() {
-		for (const auto& [stop, _] : unique_stops_with_xy_) {
-			const auto& longitude = stop->point_.lng;
-			const auto& latitude = stop->point_.lat;
+		for (const auto& [stop, _] : unique_stops_points_) {
+			const auto& longitude = stop->coordinates.lng;
+			const auto& latitude = stop->coordinates.lat;
 			if (min_lng == 0 || longitude < min_lng) { min_lng = longitude; };
 			if (min_lat == 0 || latitude < min_lat) { min_lat = latitude; };
 			if (max_lng == 0 || longitude > max_lng) { max_lng = longitude; };
@@ -97,8 +98,8 @@ namespace render {
 	}
 
 	void MapRenderer::GetXYCoordinates() {
-		for (auto& [stop_ptr, point] : unique_stops_with_xy_) { //converting lng & lat to x & y
-			svg::Point point_xy(GetX(stop_ptr->point_.lng), GetY(stop_ptr->point_.lat));
+		for (auto& [stop_ptr, point] : unique_stops_points_) { //converting lng & lat to x & y
+			svg::Point point_xy(GetX(stop_ptr->coordinates.lng), GetY(stop_ptr->coordinates.lat));
 			point = point_xy;
 		};
 	}
@@ -113,16 +114,16 @@ namespace render {
 
 	void MapRenderer::AddPolylines(svg::Document& doc) {
 		int color{}; //color palette index 
-		for (const auto& [bus_ptr, stops] : routes_) {
-			if (!stops.empty()) {  //if current route has zero stops skip it
+		for (const auto& bus_ptr : buses_) {
+			if (!bus_ptr->stops.empty()) {  //if current route has zero stops skip it
 
 				svg::Polyline polyline; //create polyline object and setting its properties
 				polyline.SetStrokeColor(settings_.color_palette[color]).SetFillColor(svg::NoneColor).
 					SetStrokeWidth(settings_.line_width).SetStrokeLineCap(svg::StrokeLineCap::ROUND).
 					SetStrokeLineJoin(svg::StrokeLineJoin::ROUND);
 
-				for (const auto& stop : stops) { //adding all points from one bus route
-					polyline.AddPoint(unique_stops_with_xy_.at(stop));
+				for (const auto& stop_ptr : bus_ptr->stops) { //adding all points from one bus route
+					polyline.AddPoint(unique_stops_points_.at(stop_ptr));
 				};
 				doc.Add(polyline); //adding ready polyline to doc
 
@@ -134,15 +135,16 @@ namespace render {
 
 	void MapRenderer::AddRoutesNames(svg::Document& doc) {
 		int color{}; //color palette index 
-		for (const auto& [bus_ptr, stops] : routes_) {
-			if (!stops.empty()) {  //if current route has zero stops skip it
-				const svg::Point& first_stop_xy = unique_stops_with_xy_.at(stops.front());
+		for (const auto& bus_ptr : buses_) {
+			if (!bus_ptr->stops.empty()) {  //if current route has zero stops skip it
+				const auto& first_stop_ptr = bus_ptr->stops.front();
+				const svg::Point& first_stop_xy = unique_stops_points_.at(first_stop_ptr);
 
 				//create text object and setting its properties
 				svg::Text text;
 				text.SetFontSize(settings_.bus_label_font_size).SetFillColor(settings_.color_palette[color]).
 					SetFontFamily("Verdana"s).SetFontWeight("bold"s).SetPosition(first_stop_xy).
-					SetOffset(settings_.bus_label_offset).SetData(bus_ptr->bus_name_);
+					SetOffset(settings_.bus_label_offset).SetData(bus_ptr->name);
 				//create underlayer object and setting its properties
 				svg::Text underlayer(text);
 				underlayer.SetFillColor(settings_.underlayer_color).SetStrokeColor(settings_.underlayer_color).
@@ -152,11 +154,12 @@ namespace render {
 				doc.Add(underlayer); //add objects for the first stop of the route
 				doc.Add(text);
 
-				if (bus_ptr->is_roundtrip_ == false) { //if not a roundtrip, add same objects for the last stop
+				if (bus_ptr->is_roundtrip == false) { //if not a roundtrip, add same objects for the last stop
 					//not a roundtrip route always will have odd number of stops, 
 					//so last stop will have index .size()/2
-					const svg::Point& last_stop_xy = unique_stops_with_xy_.at(stops[stops.size() / 2]);
-					if (stops[stops.size() / 2] != stops.front()) { //stops must be different
+					const auto& last_stop_ptr = bus_ptr->stops.at(bus_ptr->stops.size() / 2);
+					const svg::Point& last_stop_xy = unique_stops_points_.at(last_stop_ptr);
+					if (first_stop_ptr != last_stop_ptr) { //stops must be different
 						underlayer.SetPosition(last_stop_xy);
 						text.SetPosition(last_stop_xy);
 						doc.Add(underlayer); //add objects for the last stop of the route
@@ -171,7 +174,7 @@ namespace render {
 	}
 
 	void MapRenderer::AddStopsCircles(svg::Document& doc) {
-		for (const auto& [stop, point] : unique_stops_with_xy_) {
+		for (const auto& [_, point] : unique_stops_points_) {
 			svg::Circle circle;
 			circle.SetCenter(point).SetRadius(settings_.stop_radius).SetFillColor("white"s);
 			doc.Add(circle);
@@ -179,12 +182,12 @@ namespace render {
 	}
 
 	void MapRenderer::AddStopsNames(svg::Document& doc) {
-		for (const auto& [stop, point] : unique_stops_with_xy_) {
+		for (const auto& [stop_ptr, point] : unique_stops_points_) {
 
 			//create text object and setting its properties
 			svg::Text text;
 			text.SetFontSize(settings_.stop_label_font_size).SetFillColor("black"s).SetFontFamily("Verdana"s).
-				SetPosition(point).SetOffset(settings_.stop_label_offset).SetData(stop->stop_);
+				SetPosition(point).SetOffset(settings_.stop_label_offset).SetData(stop_ptr->name);
 			//create underlayer object and setting its properties
 			svg::Text underlayer(text);
 			underlayer.SetFillColor(settings_.underlayer_color).SetStrokeColor(settings_.underlayer_color).

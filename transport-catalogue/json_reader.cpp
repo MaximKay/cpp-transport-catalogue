@@ -111,13 +111,8 @@ namespace json {
 	void JsonReader::ProcessStopsAndBuses(std::vector<Node> stops_and_buses) {
 		std::vector<Dict> stops, buses;
 		for (const auto& object : stops_and_buses) {
-			std::string obj_type;
-			try {
-				obj_type = object.AsMap().at("type").AsString();
-			}
-			catch (const std::exception&) {
-				std::cerr << "Wrong data format"s << std::endl;
-			}
+			std::string obj_type{ object.AsMap().at("type").AsString() };
+		
 			if (obj_type == "Stop") {
 				stops.push_back(object.AsMap());
 			}

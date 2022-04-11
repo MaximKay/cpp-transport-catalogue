@@ -2,45 +2,60 @@
 #include <string>
 #include <cmath>
 #include <string_view>
+#include <vector>
+#include <set>
+
 #include "geo.h"
 
-namespace objects{
+namespace objects {
+	struct RouteData {
+		size_t unique_stops{};
+		size_t stops_count{};
+		size_t length{};
+		double curvature{};
+	};
+
+	struct Stop;
+
 	struct Bus {
-		Bus(const std::string& bus_name, bool is_roundtrip) : bus_name_(bus_name), is_roundtrip_(is_roundtrip) {
+		Bus(const std::string& bus, bool is_round) : name(bus), is_roundtrip(is_round) {
 		}
 
 		bool operator==(const std::string& other_bus) {
-			return other_bus == bus_name_;
+			return other_bus == name;
 		}
 
-		std::string bus_name_;
-		bool is_roundtrip_;
+		std::string name;
+		bool is_roundtrip;
+		std::vector<const Stop*> stops{};
+		RouteData route_data;
 	};
 
 	struct BusPtrComp
 	{
 		bool operator()(const Bus* lhs, const Bus* rhs) const {
-			return lhs->bus_name_ < rhs->bus_name_;
+			return lhs->name < rhs->name;
 		}
 	};
 
 	struct Stop {
-		Stop(const std::string& name, const geo::Coordinates& point) :
-			stop_(name), point_(point) {
+		Stop(const std::string& stop, const geo::Coordinates& init_coordinates) :
+			name(stop), coordinates(init_coordinates) {
 		}
 
 		bool operator==(const std::string& other_stop) {
-			return other_stop == stop_;
+			return other_stop == name;
 		}
 
-		std::string stop_;
-		geo::Coordinates point_;
+		std::string name;
+		geo::Coordinates coordinates;
+		std::set<const Bus*, BusPtrComp> buses{};
 	};
 
 	struct StopPtrComp
 	{
 		bool operator()(const Stop* lhs, const Stop* rhs) const {
-			return lhs->stop_ < rhs->stop_;
+			return lhs->name < rhs->name;
 		}
 	};
 
@@ -48,9 +63,8 @@ namespace objects{
 		StopsPtrsPair(const Stop* ptr1, const Stop* ptr2) : first(ptr1), second(ptr2) {
 		}
 
-		bool operator==(const StopsPtrsPair& other_stop_pair) const {
-			return first->stop_ == other_stop_pair.first->stop_ &&
-				second->stop_ == other_stop_pair.second->stop_;
+		bool operator==(const StopsPtrsPair& other_stops) const {
+			return (other_stops.first == first) && (other_stops.second == second);
 		}
 
 		const Stop* first{};
@@ -60,19 +74,12 @@ namespace objects{
 	struct StopsPtrsPairHasher {
 		size_t operator()(const StopsPtrsPair& stops_pair) const {
 			int index{}, i{ 1 };
-			for (const char c : (stops_pair.first->stop_ + stops_pair.second->stop_)) {
+			for (const char c : (stops_pair.first->name + stops_pair.second->name)) {
 				index += (c - '0') * static_cast<int>(std::pow(37, i));
 				++i;
 			};
 			return static_cast<size_t>(index);
 		}
-	};
-
-	struct RouteData {
-		size_t unique_stops{};
-		size_t stops_count{};
-		size_t length{};
-		double curvature{};
 	};
 
 	struct Request {

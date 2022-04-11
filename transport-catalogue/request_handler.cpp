@@ -20,10 +20,12 @@ void RequestHandler::ProcessAllRequests() {
 		for (const auto& stop : stops_and_bool.first) {
 			//getting stop pointer
 			const Stop* stop_ptr = db_.FindStop(stop);
+
+			db_.ExpandBusAndStopInfo(bus_ptr, stop_ptr);
 			//adding stop for bus
-			db_.AddStopForBus(bus_ptr, stop_ptr);
-			//adding bus for stop
-			db_.AddBusForStop(stop_ptr, bus_ptr);
+			//db_.AddStopForBus(bus_ptr, stop_ptr);
+			////adding bus for stop
+			//db_.AddBusForStop(stop_ptr, bus_ptr);
 		};
 	};
 

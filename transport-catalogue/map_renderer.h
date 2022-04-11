@@ -39,7 +39,7 @@ namespace render {
 
 		void SetColorPalette(const std::vector<svg::Color> color_palette);
 
-		void GetRoutes(const std::map<const objects::Bus*, std::vector<const objects::Stop*>>&);
+		void GetRoutes(const std::vector<const objects::Bus*>&);
 
 		const std::string_view MapAsSvg();
 
@@ -56,14 +56,12 @@ namespace render {
 
 		Settings settings_;
 
-		std::map<const objects::Bus*, std::vector<const objects::Stop*>, objects::BusPtrComp> routes_;
-		std::map<const objects::Stop*, svg::Point, objects::StopPtrComp> unique_stops_with_xy_;
+		std::vector<const objects::Bus*> buses_;
+		std::map<const objects::Stop*, svg::Point, objects::StopPtrComp> unique_stops_points_;
 		std::string ready_map;
 
 		double min_lng{}, min_lat{};
 		double max_lng{}, max_lat{};
-
-		//const objects::Stop* min_lng_stop, * max_lat_stop;
 		double zoom_coef_;
 
 		void FindMinMaxCoordinates();

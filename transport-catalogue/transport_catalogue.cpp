@@ -18,16 +18,18 @@ namespace transport {
 		stops_.emplace_back(name, point);
 	}
 
-	void Catalogue::AddStopForBus(const Bus* bus_ptr, const Stop* stop_ptr) {
-		routes_[bus_ptr].push_back(stop_ptr);
-	}
-
 	const Bus* Catalogue::AddBus(const std::string& name, const bool is_roundtrip) {
-		return &(buses_.emplace_back(Bus{ name, is_roundtrip }));
+		return &(buses_.emplace_back(name, is_roundtrip));
 	}
 
-	void Catalogue::AddBusForStop(const Stop* stop_ptr, const Bus* bus_ptr) {
-		buses_for_stop_[stop_ptr].insert(bus_ptr);
+	void Catalogue::ExpandBusAndStopInfo(const Bus* bus_ptr, const Stop* stop_ptr) {
+		const_cast<Bus*>(bus_ptr)->stops.push_back(stop_ptr);
+		const_cast<Stop*>(stop_ptr)->buses.insert(bus_ptr);
+	}
+
+	void Catalogue::ExpandBusAndStopInfo(const Stop* stop_ptr, const Bus* bus_ptr) {
+		const_cast<Stop*>(stop_ptr)->buses.insert(bus_ptr);
+		const_cast<Bus*>(bus_ptr)->stops.push_back(stop_ptr);
 	}
 
 	const Stop* Catalogue::FindStop(const std::string& stop) {
@@ -41,7 +43,7 @@ namespace transport {
 	}
 
 	const std::set<const Bus*, BusPtrComp>& Catalogue::GetBusesForStop(const Stop* stop_ptr) {
-		return buses_for_stop_.at(stop_ptr);
+		return stop_ptr->buses;
 	}
 
 	void Catalogue::SetStopsDistance(const Stop* a,
@@ -54,18 +56,18 @@ namespace transport {
 	}
 
 	void Catalogue::CalculateRoutesData() {
-		for (const auto& bus : buses_) {
+		for (auto& bus : buses_) {
 			RouteData data{};
 			//getting count of unique stops in separate namespace to save memory
 			{
-				data.unique_stops = std::set(routes_[&bus].begin(), routes_[&bus].end()).size();
+				data.unique_stops = std::set(bus.stops.begin(), bus.stops.end()).size();
 			}
 
 			//getting stop count for bus
-			data.stops_count = routes_[&bus].size();
+			data.stops_count = bus.stops.size();
 
 			//getting sum of the lengths between stops pointers and curvature
-			const auto& stops = routes_.at(&bus);
+			const auto& stops = bus.stops;
 			double curvatures{};
 			for (size_t i = 0; i < stops.size() - 1; ++i) {
 				//if length between stops as in bus route doesnt exist, getting length of reversed stops
@@ -76,12 +78,12 @@ namespace transport {
 					data.length += routes_lengths_.at({ stops.at(i + 1), stops.at(i) });
 				};
 				//summing computed curvatures
-				curvatures += geo::ComputeDistance(stops.at(i)->point_, stops.at(i + 1)->point_);
+				curvatures += geo::ComputeDistance(stops.at(i)->coordinates, stops.at(i + 1)->coordinates);
 			};
 			//curvature of all route. in case if length is zero, curvature will be zero too
 			data.curvature = (data.length == 0) ? 0 : data.length / curvatures;
 			//writing all data to catalogue
-			route_data_[&bus] = data;
+			bus.route_data = data;
 		};
 	}
 
@@ -100,10 +102,10 @@ namespace transport {
 			else {
 				std::vector<std::string> buses;
 				//in case if stop doesnt have buses, adding empty array
-				if (buses_for_stop_.count(stop_ptr)) {
+				if (!(stop_ptr->buses.empty())) {
 					//converting pointers to strings, filling vector of buses
-					for (const auto& bus_ptr : buses_for_stop_.at(stop_ptr)) {
-						buses.push_back(bus_ptr->bus_name_);
+					for (const auto& bus_ptr : stop_ptr->buses) {
+						buses.push_back(bus_ptr->name);
 					};
 				};
 				answer.data = buses;
@@ -118,15 +120,18 @@ namespace transport {
 			}
 			else {
 				//if bus exists getting route data
-				answer.data = route_data_.at(bus_ptr);
+				answer.data = bus_ptr->route_data;
 			};
 		};
 
 		return answer;
 	}
 
-	const std::map<const Bus*, std::vector<const Stop*>> Catalogue::RoutesForMap() {
-		std::map<const Bus*, std::vector<const Stop*>> routes{ routes_.begin(), routes_ .end()};
-		return routes;
+	const std::vector<const Bus*> Catalogue::RoutesForMap() {
+		std::set<const Bus*, BusPtrComp> routes;
+		for (const auto& bus : buses_) {
+			routes.insert(&bus);
+		};
+		return std::vector<const Bus*>(routes.begin(), routes.end());
 	}
 }
