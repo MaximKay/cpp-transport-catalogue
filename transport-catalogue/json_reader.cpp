@@ -5,9 +5,9 @@ namespace json {
 	using namespace std::string_literals;
 
 	void JsonReader::LoadData(std::istream& input, render::MapRenderer& renderer) {
-		Document doc = Load(input);
+		Node json_node = LoadNode(input);
 
-		const auto& all_requests = doc.GetRoot().AsMap();
+		const auto& all_requests = json_node.AsMap();
 
 		//process base requests
 		ProcessStopsAndBuses(all_requests.at("base_requests"s).AsArray());

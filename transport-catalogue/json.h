@@ -20,6 +20,8 @@ namespace json {
 		using runtime_error::runtime_error;
 	};
 
+	Node LoadNode(std::istream&);
+
 	class Node final : std::variant<std::nullptr_t, Array, Dict, int, double, bool, std::string> {
 	public:
 		using variant::variant;
@@ -50,27 +52,6 @@ namespace json {
 		const void* AsNull() const;
 	};
 
-	class Document {
-	public:
-		Document(Node root) : root_(std::move(root)) {
-		}
-
-		bool operator==(const Document& other) {
-			return root_ == other.root_;
-		}
-
-		bool operator!=(const Document& other) {
-			return !(root_ == other.root_);
-		}
-
-		const Node& GetRoot() const;
-
-	private:
-		Node root_;
-	};
-
-	Document Load(std::istream& input);
-
-	void Print(const Document& doc, std::ostream& output);
+	void PrintJson(const Node& node, std::ostream& output);
 
 }  // namespace json
