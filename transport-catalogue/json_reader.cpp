@@ -7,89 +7,73 @@ namespace json {
 	void JsonReader::LoadData(std::istream& input, render::MapRenderer& renderer) {
 		Node json_node = LoadNode(input);
 
-		const auto& all_requests = json_node.AsMap();
+		auto& all_requests = json_node.AsDict();
 
 		//process base requests
 		ProcessStopsAndBuses(all_requests.at("base_requests"s).AsArray());
 		//process render settings
-		ProcessRenderSettings(renderer, all_requests.at("render_settings"s).AsMap());
+		ProcessRenderSettings(renderer, all_requests.at("render_settings"s).AsDict());
 		//process stat requests
 		ProcessRequests(all_requests.at("stat_requests"s).AsArray());
 	}
 
 	void JsonReader::Print(std::ostream& out, const std::vector<objects::RequestAnswer>& data) {
-		out << '[' << std::endl;
-
 		using stop_data = std::vector<std::string>;
 		using bus_data = objects::RouteData;
 		using svg_map = std::string_view;
 		using error = bool;
 
-		bool is_first = true; //bool to identify first object
-		for (const auto& answer : data) {
-			if (!is_first) { out << ',' << std::endl; }; //if object is not first - add comma and new line
-			is_first = false;
+		Builder builder{};
+		builder.StartArray();
 
-			out << '{' << std::endl;
-			out << "\"request_id\": "s << answer.id << ',' << std::endl;
+		for (const auto& answer : data) {
+			builder.StartDict().Key("request_id"s).Value(answer.id);
 
 			//if data is vector - object is stop
 			if (std::holds_alternative<stop_data>(answer.data)) {
-				PrintStop(out, std::get<stop_data>(answer.data));
+				PrintStop(builder, std::get<stop_data>(answer.data));
 			}
 			//if data is RouteData - object is bus
 			else if (std::holds_alternative<bus_data>(answer.data)) {
-				PrintBus(out, std::get<bus_data>(answer.data));
+				PrintBus(builder, std::get<bus_data>(answer.data));
 			}
 			//case if data is map_renderer(string_view)
 			else if (std::holds_alternative<svg_map>(answer.data)) {
-				PrintSvgMap(out, std::get<svg_map>(answer.data));
+				PrintSvgMap(builder, std::get<svg_map>(answer.data));
 			}
 			//id data is error (bool) - object is error
 			else if (std::holds_alternative<error>(answer.data)) {
-				out << "\"error_message\": \"not found\""s << std::endl;
+				builder.Key("error_message"s).Value("not found"s);
 			};
-			out << '}';
+
+			builder.EndDict();
 		};
-		out << std::endl << ']' << std::endl;
+
+		builder.EndArray();
+		PrintJson(builder.Build(), out);
 	}
 
-	void JsonReader::PrintStop(std::ostream& out, const std::vector<std::string>& buses) {
-		out << "\"buses\": "s << '[' << std::endl;
-		bool first = true;
+	void JsonReader::PrintStop(Builder& builder, const std::vector<std::string>& buses) {
+		builder.Key("buses"s).StartArray();
 		for (const auto& bus : buses) {
-			if (first) {
-				out << '\"' << bus << '\"';
-				first = false;
-			}
-			else {
-				out << ", "s << '\"' << bus << '\"';
-			};
+			builder.Value(bus);
 		};
-		out << std::endl << ']' << std::endl;
+		builder.EndArray();
 	}
 
-	void JsonReader::PrintBus(std::ostream& out, const objects::RouteData& data) {
-		out << "\"curvature\": "s << data.curvature << ',' << std::endl;
-		out << "\"route_length\": "s << data.length << ',' << std::endl;
-		out << "\"stop_count\": "s << data.stops_count << ',' << std::endl;
-		out << "\"unique_stop_count\": "s << data.unique_stops << std::endl;
+	void JsonReader::PrintBus(Builder& builder, const objects::RouteData& data) {
+		builder.Key("curvature"s).Value(data.curvature);
+		builder.Key("route_length"s).Value(int(data.length));
+		builder.Key("stop_count"s).Value(int(data.stops_count));
+		builder.Key("unique_stop_count"s).Value(int(data.unique_stops));
 	}
 
-	void JsonReader::PrintSvgMap(std::ostream& out, const std::string_view& svg_map) {
-		out << "\"map\": \""s;
-		//processing string_view char by char to catch escape sequences
-		for (const char c : svg_map) {
-			if (c == '\"' || c == '\\') {
-				out << '\\';
-			}
-			else if (c == '\n') {
-				out << "\\n"s;
-				continue;
-			};
-			out << c;
-		};
-		out << '\"' << std::endl;
+	void JsonReader::PrintSvgMap(Builder& builder, const std::string_view& svg_map) {
+		builder.Key("map"s).Value(svg_map);
+	}
+
+	void JsonReader::PrintError(Builder& builder, const bool) {
+		builder.Key("error_message"s).Value("not found"s);
 	}
 
 	const std::map<std::string, geo::Coordinates>& JsonReader::GetParsedStops() {
@@ -111,13 +95,13 @@ namespace json {
 	void JsonReader::ProcessStopsAndBuses(std::vector<Node> stops_and_buses) {
 		std::vector<Dict> stops, buses;
 		for (const auto& object : stops_and_buses) {
-			std::string obj_type{ object.AsMap().at("type").AsString() };
-		
+			std::string obj_type{ object.AsDict().at("type").AsString() };
+
 			if (obj_type == "Stop") {
-				stops.push_back(object.AsMap());
+				stops.push_back(object.AsDict());
 			}
 			else if (obj_type == "Bus") {
-				buses.push_back(object.AsMap());
+				buses.push_back(object.AsDict());
 			};
 		};
 
@@ -178,7 +162,7 @@ namespace json {
 	void JsonReader::ProcessRequests(std::vector<Node> requests) {
 		for (const auto& node_request : requests) {
 			//convert request type Node to map
-			const auto& request_ = node_request.AsMap();
+			const auto& request_ = node_request.AsDict();
 			//getting id of request, type of requested object and its name
 			objects::Request request{};
 			request.id = request_.at("id"s).AsInt();
@@ -201,7 +185,7 @@ namespace json {
 			//adding stop to reader container
 			parsed_stops_[stop_name] = coordinates;
 			//adding road distances to reader container
-			const std::map<std::string, Node>& distances = { object.at("road_distances"s).AsMap() };
+			const std::map<std::string, Node>& distances = { object.at("road_distances"s).AsDict() };
 			if (!distances.empty()) {
 				for (const auto& [second_stop, length_as_node] : distances) {
 					routes_lengths_[stop_name][second_stop] = length_as_node.AsInt();

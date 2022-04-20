@@ -223,136 +223,38 @@ namespace json {
 		}
 	}
 
-	bool Node::IsArray() const {
-		return std::holds_alternative<Array>(*this);
-	}
-
-	bool Node::IsMap() const {
-		return std::holds_alternative<Dict>(*this);
-	}
-
-	bool Node::IsInt() const {
-		return std::holds_alternative<int>(*this);
-	}
-
-	bool Node::IsDouble() const {
-		return std::holds_alternative<int>(*this) || std::holds_alternative<double>(*this);
-	}
-
-	bool Node::IsPureDouble() const {
-		return std::holds_alternative<double>(*this) && !std::holds_alternative<int>(*this);
-	}
-
-	bool Node::IsBool() const {
-		return std::holds_alternative<bool>(*this);
-	}
-
-	bool Node::IsString() const {
-		return std::holds_alternative<std::string>(*this);
-	}
-
-	bool Node::IsNull() const {
-		return std::holds_alternative<std::nullptr_t>(*this);
-	}
-
-	const Array& Node::AsArray() const {
-		if (IsArray()) {
-			return std::get<Array>(*this);
-		}
-		else {
-			throw std::logic_error("Node data is not array"s);
-		}
-	}
-
-	const Dict& Node::AsMap() const {
-		if (IsMap()) {
-			return std::get<Dict>(*this);
-		}
-		else {
-			throw std::logic_error("Node data is not map"s);
-		}
-	}
-
-	int Node::AsInt() const {
-		if (IsInt()) {
-			return std::get<int>(*this);
-		}
-		else {
-			throw std::logic_error("Node data is not int"s);
-		}
-	}
-
-	double Node::AsDouble() const {
-		if (IsDouble()) {
-			if (IsInt()) {
-				return double(std::get<int>(*this));
-			}
-			else {
-				return std::get<double>(*this);
-			};
-		}
-		else { throw std::logic_error("Node data is not double"s); }
-	}
-
-	bool Node::AsBool() const {
-		if (IsBool()) {
-			return std::get<bool>(*this);
-		}
-		else {
-			throw std::logic_error("Node data is not bool"s);
-		}
-	}
-
-	const std::string& Node::AsString() const {
-		if (IsString()) {
-			return std::get<std::string>(*this);
-		}
-		else {
-			throw std::logic_error("Node data is not string"s);
-		}
-	}
-
-	const void* Node::AsNull() const {
-		if (IsNull()) {
-			return nullptr;
-		}
-		else {
-			throw std::logic_error("Node data is not null"s);
-		}
-	}
-
 	void PrintJson(const Node& node, std::ostream& output) {
 		if (node.IsArray()) {
 			bool first = true;
-			output << '[';
+			output << '[' << std::endl;
 			for (const auto& obj : node.AsArray()) {
 				if (first) {
 					PrintJson(obj, output);
 					first = false;
 				}
 				else {
-					output << ", "sv;
+					output << ", "sv << std::endl;
 					PrintJson(obj, output);
 				};
 			}
-			output << ']';
+			output << std::endl << ']';
 		}
-		else if (node.IsMap()) {
+		else if (node.IsDict()) {
 			bool first = true;
-			output << '{';
-			for (const auto& [key, node_] : node.AsMap()) {
+			output << '{' << std::endl;
+			for (const auto& [key, node_] : node.AsDict()) {
 				if (first) {
 					output << '\"' << key << "\": "sv;
 					PrintJson(node_, output);
 					first = false;
 				}
 				else {
-					output << ", "sv;
+					output << ", "sv << std::endl;
 					output << '\"' << key << "\": "sv;
 					PrintJson(node_, output);
 				};
 			}
-			output << '}';
+			output << std::endl << '}';
 		}
 		else if (node.IsInt()) {
 			output << node.AsInt();
@@ -371,21 +273,27 @@ namespace json {
 				output << "false"sv;
 			};
 		}
-		else if (node.IsString()) {
-			std::string result{ "\""sv };
-			for (const char c : node.AsString()) {
+		else if (node.IsString() || node.IsStringView()) {
+			output << '\"';
+			const std::string_view text = node.IsString() ? node.AsString() : node.AsStringView();
+			for (const char c : text) {
 				if (c == '\\') {
-					result += "\\\\"sv;
+					output << "\\\\"sv;
 				}
 				else if (c == '\"') {
-					result += "\\\""sv;
+					output << "\\\""sv;
+				}
+				else if (c == '\n') {
+					output << "\\n"sv;
+				}
+				else if (c == '\r') {
+					output << "\\r"sv;
 				}
 				else {
-					result += c;
+					output << c;
 				};
 			};
-			result += "\""sv;
-			output << result;
+			output << '\"';
 		}
 		else if (node.IsNull()) {
 			output << "null"sv;

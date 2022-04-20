@@ -10,6 +10,7 @@
 
 #include "geo.h"
 #include "json.h"
+#include "json_builder.h"
 #include "domain.h"
 #include "map_renderer.h"
 
@@ -48,11 +49,13 @@ namespace json {
 
 		void ParseBuses(std::vector<Dict>);
 
-		void PrintStop(std::ostream&, const std::vector<std::string>&);
+		void PrintStop(Builder&, const std::vector<std::string>&);
 
-		void PrintBus(std::ostream&, const objects::RouteData&);
+		void PrintBus(Builder&, const objects::RouteData&);
 
-		void PrintSvgMap(std::ostream&, const std::string_view&);
+		void PrintSvgMap(Builder&, const std::string_view&);
+
+		void PrintError(Builder&, const bool);
 	};
 
 }//end of namespace json

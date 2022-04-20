@@ -128,7 +128,7 @@ namespace render {
 				doc.Add(polyline); //adding ready polyline to doc
 
 				//if color is last - going to the first color
-				color = (color == (settings_.color_palette.size() - 1)) ? 0 : (color + 1);
+				color = (color == (static_cast<int>(settings_.color_palette.size()) - 1)) ? 0 : (color + 1);
 			};
 		};
 	}
@@ -168,7 +168,7 @@ namespace render {
 				};
 
 				//if color is last - going to the first color
-				color = (color == (settings_.color_palette.size() - 1)) ? 0 : (color + 1);
+				color = (color == (static_cast<int>(settings_.color_palette.size()) - 1)) ? 0 : (color + 1);
 			};
 		};
 	}
