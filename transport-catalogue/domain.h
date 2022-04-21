@@ -4,6 +4,7 @@
 #include <string_view>
 #include <vector>
 #include <set>
+#include <variant>
 
 #include "geo.h"
 
@@ -18,12 +19,9 @@ namespace objects {
 	struct Stop;
 
 	struct Bus {
-		Bus(const std::string& bus, bool is_round) : name(bus), is_roundtrip(is_round) {
-		}
+		Bus(const std::string& bus, bool is_round);
 
-		bool operator==(const std::string& other_bus) {
-			return other_bus == name;
-		}
+		bool operator==(const std::string& other_bus);
 
 		std::string name;
 		bool is_roundtrip;
@@ -33,19 +31,13 @@ namespace objects {
 
 	struct BusPtrComp
 	{
-		bool operator()(const Bus* lhs, const Bus* rhs) const {
-			return lhs->name < rhs->name;
-		}
+		bool operator()(const Bus* lhs, const Bus* rhs) const;
 	};
 
 	struct Stop {
-		Stop(const std::string& stop, const geo::Coordinates& init_coordinates) :
-			name(stop), coordinates(init_coordinates) {
-		}
+		Stop(const std::string& stop, const geo::Coordinates& init_coordinates);
 
-		bool operator==(const std::string& other_stop) {
-			return other_stop == name;
-		}
+		bool operator==(const std::string& other_stop);
 
 		std::string name;
 		geo::Coordinates coordinates;
@@ -54,32 +46,20 @@ namespace objects {
 
 	struct StopPtrComp
 	{
-		bool operator()(const Stop* lhs, const Stop* rhs) const {
-			return lhs->name < rhs->name;
-		}
+		bool operator()(const Stop* lhs, const Stop* rhs) const;
 	};
 
 	struct StopsPtrsPair {
-		StopsPtrsPair(const Stop* ptr1, const Stop* ptr2) : first(ptr1), second(ptr2) {
-		}
+		StopsPtrsPair(const Stop* ptr1, const Stop* ptr2);
 
-		bool operator==(const StopsPtrsPair& other_stops) const {
-			return (other_stops.first == first) && (other_stops.second == second);
-		}
+		bool operator==(const StopsPtrsPair& other_stops) const;
 
 		const Stop* first{};
 		const Stop* second{};
 	};
 
 	struct StopsPtrsPairHasher {
-		size_t operator()(const StopsPtrsPair& stops_pair) const {
-			int index{}, i{ 1 };
-			for (const char c : (stops_pair.first->name + stops_pair.second->name)) {
-				index += (c - '0') * static_cast<int>(std::pow(37, i));
-				++i;
-			};
-			return static_cast<size_t>(index);
-		}
+		size_t operator()(const StopsPtrsPair& stops_pair) const;
 	};
 
 	struct Request {
